@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Pitch Visualizer — From Words to Storyboard</title>
+    <meta name="description" content="Transform narrative text into stunning visual storyboards with AI-powered prompt engineering.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #08080f;
+            --bg-secondary: #10101a;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-glass: rgba(255, 255, 255, 0.04);
+            --border-glass: rgba(255, 255, 255, 0.07);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888a0;
+            --text-muted: #555568;
+            --accent-1: #f59e0b;
+            --accent-2: #f97316;
+            --accent-gradient: linear-gradient(135deg, #f59e0b, #f97316, #ef4444);
+            --glow: rgba(245, 158, 11, 0.12);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 40%, rgba(245, 158, 11, 0.04) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 60%, rgba(249, 115, 22, 0.03) 0%, transparent 50%),
+                        radial-gradient(ellipse at 50% 80%, rgba(239, 68, 68, 0.02) 0%, transparent 50%);
+            animation: bgFloat 25s ease-in-out infinite alternate;
+            z-index: 0;
+        }
+
+        @keyframes bgFloat {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-3%, -1%) rotate(2deg); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 100px;
+            padding: 8px 20px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-badge .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #f59e0b;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; box-shadow: 0 0 4px #f59e0b; }
+            50% { opacity: 0.5; box-shadow: 0 0 12px #f59e0b; }
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fff 0%, #fbbf24 50%, #f97316 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            line-height: 1.6;
+            max-width: 650px;
+            margin: 0 auto;
+        }
+
+        /* Glass Card */
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 24px;
+            transition: border-color 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(245, 158, 11, 0.12);
+        }
+
+        .card-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        /* Text Input */
+        #textInput {
+            width: 100%;
+            min-height: 160px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: 14px;
+            padding: 20px;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            line-height: 1.7;
+            resize: vertical;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            outline: none;
+        }
+
+        #textInput:focus {
+            border-color: var(--accent-1);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+
+        #textInput::placeholder {
+            color: var(--text-muted);
+        }
+
+        .input-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .char-count {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Style Selector */
+        .style-section {
+            margin-top: 20px;
+        }
+
+        .style-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .style-option {
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--border-glass);
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .style-option:hover {
+            border-color: rgba(245, 158, 11, 0.3);
+            color: var(--text-primary);
+        }
+
+        .style-option.selected {
+            border-color: var(--accent-1);
+            background: rgba(245, 158, 11, 0.08);
+            color: var(--accent-1);
+        }
+
+        .style-icon {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        /* Generate Button */
+        .btn-generate {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 16px 32px;
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin-top: 24px;
+        }
+
+        .btn-generate::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .btn-generate:hover::before { opacity: 1; }
+        .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(245, 158, 11, 0.3); }
+        .btn-generate:active { transform: translateY(0); }
+        .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Error */
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: #f87171;
+            text-align: center;
+            display: none;
+            margin-top: 16px;
+        }
+
+        /* Progress */
+        .progress-bar {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress-bg {
+            height: 6px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 100px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 100px;
+            background: var(--accent-gradient);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* Storyboard */
+        #storyboard {
+            display: none;
+        }
+
+        #storyboard.visible {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .storyboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .panel-count {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Panel */
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 24px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: panelSlideIn 0.6s ease forwards;
+        }
+
+        @keyframes panelSlideIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .panel-image {
+            width: 100%;
+            display: block;
+            aspect-ratio: 3/2;
+            object-fit: cover;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .panel-content {
+            padding: 24px;
+        }
+
+        .panel-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .scene-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 14px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--accent-1);
+            border: 1px solid rgba(245, 158, 11, 0.15);
+        }
+
+        .position-tag {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .panel-text {
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .key-phrases {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .phrase-tag {
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-glass);
+            border-radius: 100px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Prompt Preview */
+        .prompt-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .prompt-toggle:hover {
+            color: var(--text-secondary);
+        }
+
+        .prompt-text {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--accent-1);
+            font-family: 'Courier New', monospace;
+            word-break: break-word;
+        }
+
+        .prompt-text.visible {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            h1 { font-size: 32px; }
+            .glass-card { padding: 20px; }
+            .container { padding: 20px 16px; }
+            .style-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-badge">
+                <span class="dot"></span>
+                <span>Pitch Visualizer v1.0</span>
+            </div>
+            <h1>The Pitch Visualizer</h1>
+            <p class="subtitle">
+                Transform your narrative into a stunning visual storyboard. Paste a customer success story,
+                sales pitch, or any narrative text and watch it come to life panel by panel.
+            </p>
+        </header>
+
+        <!-- Input Section -->
+        <div class="glass-card">
+            <div class="card-label">📝 Your Narrative</div>
+            <textarea id="textInput" placeholder="Paste your narrative here... A customer success story, a product pitch, or any compelling story with 3-5 sentences works best.
+
+Example: Our client, a Fortune 500 company, was struggling with declining customer engagement. Their legacy systems were outdated and their team was frustrated. We implemented our AI-powered platform that transformed their entire workflow. Within three months, customer satisfaction scores increased by 45%. Today, they are one of our most successful case studies."
+                maxlength="10000"></textarea>
+            <div class="input-footer">
+                <span class="char-count"><span id="charCount">0</span> / 10000 characters</span>
+            </div>
+
+            <!-- Style Selector -->
+            <div class="style-section">
+                <div class="card-label">🎨 Visual Style</div>
+                <div class="style-grid">
+                    <div class="style-option selected" data-style="digital_art" onclick="selectStyle(this)">
+                        <span class="style-icon">💫</span>
+                        Digital Art
+                    </div>
+                    <div class="style-option" data-style="photorealistic" onclick="selectStyle(this)">
+                        <span class="style-icon">📷</span>
+                        Photorealistic
+                    </div>
+                    <div class="style-option" data-style="watercolor" onclick="selectStyle(this)">
+                        <span class="style-icon">🎨</span>
+                        Watercolor
+                    </div>
+                    <div class="style-option" data-style="comic_book" onclick="selectStyle(this)">
+                        <span class="style-icon">💥</span>
+                        Comic Book
+                    </div>
+                    <div class="style-option" data-style="minimalist" onclick="selectStyle(this)">
+                        <span class="style-icon">◽</span>
+                        Minimalist
+                    </div>
+                    <div class="style-option" data-style="cinematic" onclick="selectStyle(this)">
+                        <span class="style-icon">🎬</span>
+                        Cinematic
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-generate" id="generateBtn" onclick="generateStoryboard()">
+                <span>🖼️</span>
+                <span id="btnText">Generate Storyboard</span>
+                <div class="spinner" id="spinner"></div>
+            </button>
+
+            <div class="error-msg" id="errorMsg"></div>
+
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-bg">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Preparing...</div>
+            </div>
+        </div>
+
+        <!-- Storyboard -->
+        <div id="storyboard">
+            <div class="glass-card">
+                <div class="storyboard-header">
+                    <div class="card-label">📖 Your Storyboard</div>
+                    <div class="panel-count" id="panelCount"></div>
+                </div>
+
+                <div id="panelsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedStyle = 'digital_art';
+
+        // Character counter
+        const textInput = document.getElementById('textInput');
+        const charCount = document.getElementById('charCount');
+        textInput.addEventListener('input', () => {
+            charCount.textContent = textInput.value.length;
+        });
+
+        function selectStyle(el) {
+            document.querySelectorAll('.style-option').forEach(s => s.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedStyle = el.dataset.style;
+        }
+
+        function showProgress(percent, text) {
+            const bar = document.getElementById('progressBar');
+            const fill = document.getElementById('progressFill');
+            const txt = document.getElementById('progressText');
+            bar.style.display = 'block';
+            fill.style.width = percent + '%';
+            txt.textContent = text;
+        }
+
+        function hideProgress() {
+            document.getElementById('progressBar').style.display = 'none';
+        }
+
+        async function generateStoryboard() {
+            const text = textInput.value.trim();
+            if (!text) {
+                showError('Please enter narrative text to visualize.');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const btnText = document.getElementById('btnText');
+            const spinner = document.getElementById('spinner');
+
+            btn.disabled = true;
+            btnText.textContent = 'Generating...';
+            spinner.style.display = 'block';
+            hideError();
+
+            showProgress(10, 'Segmenting narrative...');
+
+            try {
+                showProgress(30, 'Engineering visual prompts...');
+
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, style: selectedStyle })
+                });
+
+                showProgress(70, 'Generating scene images...');
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Generation failed');
+                }
+
+                showProgress(100, 'Storyboard complete!');
+
+                setTimeout(() => {
+                    hideProgress();
+                    displayStoryboard(data);
+                }, 500);
+
+            } catch (err) {
+                hideProgress();
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = 'Generate Storyboard';
+                spinner.style.display = 'none';
+            }
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag]));
+        }
+
+        function displayStoryboard(data) {
+            const storyboard = document.getElementById('storyboard');
+            const container = document.getElementById('panelsContainer');
+            const panelCount = document.getElementById('panelCount');
+
+            storyboard.classList.add('visible');
+            panelCount.textContent = `${escapeHTML(data.total_panels)} panels • ${escapeHTML(data.style)} style`;
+            container.innerHTML = '';
+
+            data.panels.forEach((panel, index) => {
+                const panelEl = document.createElement('div');
+                panelEl.className = 'panel';
+                panelEl.style.animationDelay = `${index * 0.15}s`;
+
+                const phraseTags = (panel.key_phrases.nouns || [])
+                    .slice(0, 4)
+                    .map(n => `<span class="phrase-tag">${escapeHTML(n)}</span>`)
+                    .join('');
+
+                panelEl.innerHTML = `
+                    <img class="panel-image" src="${escapeHTML(panel.image_url)}" alt="Scene ${parseInt(panel.scene_number)}" loading="lazy">
+                    <div class="panel-content">
+                        <div class="panel-meta">
+                            <span class="scene-badge">Scene ${parseInt(panel.scene_number)}</span>
+                            <span class="position-tag">${escapeHTML(panel.position)}</span>
+                        </div>
+                        <p class="panel-text">${escapeHTML(panel.text)}</p>
+                        <div class="key-phrases">${phraseTags}</div>
+                        <button class="prompt-toggle" onclick="togglePrompt(this)">
+                            🔍 View Prompt
+                        </button>
+                        <div class="prompt-text">${escapeHTML(panel.prompt)}</div>
+                    </div>
+                `;
+
+                container.appendChild(panelEl);
+            });
+
+            // Scroll to storyboard
+            setTimeout(() => {
+                storyboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 300);
+        }
+
+        function togglePrompt(btn) {
+            const prompt = btn.nextElementSibling;
+            prompt.classList.toggle('visible');
+            btn.textContent = prompt.classList.contains('visible') ? '🔍 Hide Prompt' : '🔍 View Prompt';
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMsg').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

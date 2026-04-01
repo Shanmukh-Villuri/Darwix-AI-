@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Empathy Engine — Giving AI a Human Voice</title>
+    <meta name="description" content="AI-driven Text-to-Speech that dynamically modulates vocal characteristics based on detected emotion.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-glass: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888a0;
+            --text-muted: #555568;
+            --accent-gradient: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
+            --accent-1: #6366f1;
+            --accent-2: #8b5cf6;
+            --glow: rgba(99, 102, 241, 0.15);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
+                        radial-gradient(ellipse at 50% 80%, rgba(168, 85, 247, 0.03) 0%, transparent 50%);
+            animation: bgFloat 20s ease-in-out infinite alternate;
+            z-index: 0;
+        }
+
+        @keyframes bgFloat {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-2%, -2%) rotate(3deg); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 100px;
+            padding: 8px 20px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-badge .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; box-shadow: 0 0 4px #22c55e; }
+            50% { opacity: 0.5; box-shadow: 0 0 12px #22c55e; }
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fff 0%, #c4b5fd 50%, #818cf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            line-height: 1.6;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Glass Card */
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 24px;
+            transition: border-color 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.15);
+        }
+
+        .card-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        /* Text Input */
+        .text-input-wrapper {
+            position: relative;
+        }
+
+        #textInput {
+            width: 100%;
+            min-height: 140px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: 14px;
+            padding: 20px;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            line-height: 1.7;
+            resize: vertical;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            outline: none;
+        }
+
+        #textInput:focus {
+            border-color: var(--accent-1);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        #textInput::placeholder {
+            color: var(--text-muted);
+        }
+
+        .char-count {
+            position: absolute;
+            bottom: 12px;
+            right: 16px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Generate Button */
+        .btn-generate {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 16px 32px;
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .btn-generate::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .btn-generate:hover::before { opacity: 1; }
+        .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3); }
+        .btn-generate:active { transform: translateY(0); }
+        .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-icon { font-size: 18px; }
+
+        /* Loading Spinner */
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Results Section */
+        #results {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        #results.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Emotion Display */
+        .emotion-display {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .emotion-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 24px;
+            border-radius: 100px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: capitalize;
+            animation: badgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes badgePop {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .emotion-badge.happy, .emotion-badge.excited {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .emotion-badge.sad {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .emotion-badge.frustrated {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .emotion-badge.concerned {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .emotion-badge.neutral {
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .emotion-badge.surprised {
+            background: rgba(236, 72, 153, 0.15);
+            color: #f472b6;
+            border: 1px solid rgba(236, 72, 153, 0.2);
+        }
+
+        .emotion-badge.inquisitive {
+            background: rgba(14, 165, 233, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(14, 165, 233, 0.2);
+        }
+
+        .emotion-icon {
+            font-size: 22px;
+        }
+
+        /* Intensity Bar */
+        .intensity-wrapper {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .intensity-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .intensity-bar-bg {
+            height: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 100px;
+            overflow: hidden;
+        }
+
+        .intensity-bar-fill {
+            height: 100%;
+            border-radius: 100px;
+            background: var(--accent-gradient);
+            width: 0%;
+            transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .intensity-value {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        /* Voice Parameters */
+        .voice-params-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .param-card {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-glass);
+            border-radius: 14px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .param-name {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .param-value {
+            font-size: 32px;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .param-unit {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .param-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 100px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .param-bar-fill {
+            height: 100%;
+            border-radius: 100px;
+            transition: width 1s ease;
+            width: 0%;
+        }
+
+        .param-bar-fill.rate { background: linear-gradient(90deg, #6366f1, #818cf8); }
+        .param-bar-fill.pitch { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+        .param-bar-fill.volume { background: linear-gradient(90deg, #a855f7, #c084fc); }
+
+        /* Description */
+        .voice-description {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: rgba(99, 102, 241, 0.06);
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            border-radius: 12px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .voice-description .desc-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Audio Player */
+        .audio-section {
+            text-align: center;
+        }
+
+        .audio-player-wrapper {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 24px 40px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            min-width: 300px;
+        }
+
+        .audio-wave {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 40px;
+        }
+
+        .audio-wave .bar {
+            width: 4px;
+            background: var(--accent-gradient);
+            border-radius: 100px;
+            animation: wave 1.2s ease-in-out infinite;
+        }
+
+        .audio-wave .bar:nth-child(1) { height: 15px; animation-delay: 0s; }
+        .audio-wave .bar:nth-child(2) { height: 25px; animation-delay: 0.1s; }
+        .audio-wave .bar:nth-child(3) { height: 35px; animation-delay: 0.2s; }
+        .audio-wave .bar:nth-child(4) { height: 20px; animation-delay: 0.3s; }
+        .audio-wave .bar:nth-child(5) { height: 30px; animation-delay: 0.4s; }
+        .audio-wave .bar:nth-child(6) { height: 15px; animation-delay: 0.5s; }
+        .audio-wave .bar:nth-child(7) { height: 25px; animation-delay: 0.6s; }
+
+        @keyframes wave {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.4); }
+        }
+
+        audio {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 30px;
+            outline: none;
+        }
+
+        audio::-webkit-media-controls-panel {
+            background: rgba(30, 30, 50, 0.8);
+        }
+
+        /* SSML Preview */
+        .ssml-preview {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #a78bfa;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        /* Scores Grid */
+        .scores-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .score-item {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-glass);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .score-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .score-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Error */
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: #f87171;
+            text-align: center;
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            h1 { font-size: 32px; }
+            .voice-params-grid { grid-template-columns: 1fr; }
+            .glass-card { padding: 20px; }
+            .container { padding: 20px 16px; }
+        }
+
+        /* Fade-in animation for cards */
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-badge">
+                <span class="dot"></span>
+                <span>Empathy Engine v1.0</span>
+            </div>
+            <h1>The Empathy Engine</h1>
+            <p class="subtitle">
+                Transform text into emotionally resonant speech. Our AI detects the emotion in your words
+                and modulates voice parameters to create natural, human-like vocal delivery.
+            </p>
+        </header>
+
+        <!-- Input Section -->
+        <div class="glass-card">
+            <div class="card-label">✏️ Enter Your Text</div>
+            <div class="text-input-wrapper">
+                <textarea id="textInput" placeholder="Type or paste your text here... Try expressing different emotions like joy, frustration, sadness, or curiosity to see how the voice adapts."
+                    maxlength="5000"></textarea>
+                <span class="char-count"><span id="charCount">0</span> / 5000</span>
+            </div>
+            <button class="btn-generate" id="generateBtn" onclick="analyzeText()">
+                <span class="btn-icon">🎙️</span>
+                <span id="btnText">Generate Empathetic Speech</span>
+                <div class="spinner" id="spinner"></div>
+            </button>
+            <div class="error-msg" id="errorMsg"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results">
+            <!-- Emotion Detection -->
+            <div class="glass-card fade-in" id="emotionCard" style="display:none;">
+                <div class="card-label">🧠 Detected Emotion</div>
+                <div class="emotion-display">
+                    <div class="emotion-badge" id="emotionBadge">
+                        <span class="emotion-icon" id="emotionIcon"></span>
+                        <span id="emotionName"></span>
+                    </div>
+                    <div class="intensity-wrapper">
+                        <div class="intensity-label">Intensity</div>
+                        <div class="intensity-bar-bg">
+                            <div class="intensity-bar-fill" id="intensityBar"></div>
+                        </div>
+                        <div class="intensity-value" id="intensityValue"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice Parameters -->
+            <div class="glass-card fade-in" id="voiceCard" style="display:none;">
+                <div class="card-label">🎚️ Voice Parameters</div>
+                <div class="voice-params-grid">
+                    <div class="param-card">
+                        <div class="param-name">Rate</div>
+                        <div class="param-value" id="rateValue">—</div>
+                        <div class="param-unit">words/min</div>
+                        <div class="param-bar">
+                            <div class="param-bar-fill rate" id="rateBar"></div>
+                        </div>
+                    </div>
+                    <div class="param-card">
+                        <div class="param-name">Pitch</div>
+                        <div class="param-value" id="pitchValue">—</div>
+                        <div class="param-unit">Hz modifier</div>
+                        <div class="param-bar">
+                            <div class="param-bar-fill pitch" id="pitchBar"></div>
+                        </div>
+                    </div>
+                    <div class="param-card">
+                        <div class="param-name">Volume</div>
+                        <div class="param-value" id="volumeValue">—</div>
+                        <div class="param-unit">scale</div>
+                        <div class="param-bar">
+                            <div class="param-bar-fill volume" id="volumeBar"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="voice-description" id="voiceDesc">
+                    <span class="desc-icon">💡</span>
+                    <span id="voiceDescText"></span>
+                </div>
+            </div>
+
+            <!-- Audio Player -->
+            <div class="glass-card fade-in audio-section" id="audioCard" style="display:none;">
+                <div class="card-label">🔊 Listen to Result</div>
+                <div class="audio-player-wrapper">
+                    <div class="audio-wave">
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                        <div class="bar"></div>
+                    </div>
+                    <audio controls id="audioPlayer">
+                        <source id="audioSource" type="audio/wav">
+                        Your browser does not support audio playback.
+                    </audio>
+                </div>
+            </div>
+
+            <!-- Analysis Details -->
+            <div class="glass-card fade-in" id="detailsCard" style="display:none;">
+                <div class="card-label">📊 Analysis Scores</div>
+                <div class="scores-grid">
+                    <div class="score-item">
+                        <div class="score-label">VADER Compound</div>
+                        <div class="score-value" id="vaderCompound">—</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-label">Positive</div>
+                        <div class="score-value" id="vaderPos">—</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-label">Negative</div>
+                        <div class="score-value" id="vaderNeg">—</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-label">Neutral</div>
+                        <div class="score-value" id="vaderNeu">—</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-label">TextBlob Polarity</div>
+                        <div class="score-value" id="tbPolarity">—</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="score-label">Subjectivity</div>
+                        <div class="score-value" id="tbSubjectivity">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SSML Preview -->
+            <div class="glass-card fade-in" id="ssmlCard" style="display:none;">
+                <div class="card-label">📝 SSML Output</div>
+                <pre class="ssml-preview" id="ssmlPreview"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Character counter
+        const textInput = document.getElementById('textInput');
+        const charCount = document.getElementById('charCount');
+
+        textInput.addEventListener('input', () => {
+            charCount.textContent = textInput.value.length;
+        });
+
+        // Emotion icons map
+        const EMOTION_ICONS = {
+            happy: '😊',
+            excited: '🤩',
+            neutral: '😐',
+            concerned: '😟',
+            frustrated: '😤',
+            sad: '😢',
+            surprised: '😮',
+            inquisitive: '🤔'
+        };
+
+        async function analyzeText() {
+            const text = textInput.value.trim();
+            if (!text) {
+                showError('Please enter some text to analyze.');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const btnText = document.getElementById('btnText');
+            const spinner = document.getElementById('spinner');
+
+            // Loading state
+            btn.disabled = true;
+            btnText.textContent = 'Analyzing...';
+            spinner.style.display = 'block';
+            hideError();
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+
+                displayResults(data);
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = 'Generate Empathetic Speech';
+                spinner.style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            results.classList.add('visible');
+
+            // Emotion Badge
+            const emotionCard = document.getElementById('emotionCard');
+            const emotionBadge = document.getElementById('emotionBadge');
+            const emotionIcon = document.getElementById('emotionIcon');
+            const emotionName = document.getElementById('emotionName');
+            const intensityBar = document.getElementById('intensityBar');
+            const intensityValue = document.getElementById('intensityValue');
+
+            emotionCard.style.display = 'block';
+            emotionBadge.className = `emotion-badge ${data.emotion.detected}`;
+            emotionIcon.textContent = EMOTION_ICONS[data.emotion.detected] || '🎭';
+            emotionName.textContent = data.emotion.detected;
+
+            setTimeout(() => {
+                intensityBar.style.width = `${data.emotion.intensity * 100}%`;
+            }, 100);
+            intensityValue.textContent = `${Math.round(data.emotion.intensity * 100)}%`;
+
+            // Voice Parameters
+            const voiceCard = document.getElementById('voiceCard');
+            voiceCard.style.display = 'block';
+
+            document.getElementById('rateValue').textContent = data.voice_parameters.rate;
+            document.getElementById('pitchValue').textContent = data.voice_parameters.pitch;
+            document.getElementById('volumeValue').textContent = data.voice_parameters.volume;
+            document.getElementById('voiceDescText').textContent = data.voice_parameters.description;
+
+            // Parameter bars
+            setTimeout(() => {
+                document.getElementById('rateBar').style.width = `${(data.voice_parameters.rate / 300) * 100}%`;
+                document.getElementById('pitchBar').style.width = `${(data.voice_parameters.pitch / 200) * 100}%`;
+                document.getElementById('volumeBar').style.width = `${data.voice_parameters.volume * 100}%`;
+            }, 200);
+
+            // Audio Player
+            const audioCard = document.getElementById('audioCard');
+            const audioSource = document.getElementById('audioSource');
+            const audioPlayer = document.getElementById('audioPlayer');
+
+            audioCard.style.display = 'block';
+            audioSource.src = data.audio_url;
+            audioPlayer.load();
+
+            // Analysis Scores
+            const detailsCard = document.getElementById('detailsCard');
+            detailsCard.style.display = 'block';
+
+            document.getElementById('vaderCompound').textContent = data.emotion.vader_scores.compound;
+            document.getElementById('vaderPos').textContent = data.emotion.vader_scores.pos;
+            document.getElementById('vaderNeg').textContent = data.emotion.vader_scores.neg;
+            document.getElementById('vaderNeu').textContent = data.emotion.vader_scores.neu;
+            document.getElementById('tbPolarity').textContent = data.emotion.textblob_polarity;
+            document.getElementById('tbSubjectivity').textContent = data.emotion.textblob_subjectivity;
+
+            // SSML Preview
+            const ssmlCard = document.getElementById('ssmlCard');
+            ssmlCard.style.display = 'block';
+            document.getElementById('ssmlPreview').textContent = data.ssml;
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMsg').style.display = 'none';
+        }
+
+        // Enter key support
+        textInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                analyzeText();
+            }
+        });
+    </script>
+</body>
+</html>

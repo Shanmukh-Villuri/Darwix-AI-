@@ -1,0 +1,21 @@
+# --- Common Core / Both Services ---
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+jinja2==3.1.4
+python-multipart==0.0.9
+aiofiles==24.1.0
+
+# --- Empathy Engine (Challenge 1) ---
+vaderSentiment==3.3.2
+textblob==0.18.0
+pyttsx3==2.90
+
+# --- Pitch Visualizer (Challenge 2) ---
+nltk==3.9.1
+Pillow==10.4.0
+requests==2.32.3
+
+# --- Optional: LLM-powered prompt refinement for Pitch Visualizer ---
+# Set the GEMINI_API_KEY environment variable to enable.
+# Requires google-generativeai >= 0.7 for gemini-1.5-flash support.
+google-generativeai>=0.7.0
